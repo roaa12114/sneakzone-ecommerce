@@ -1,0 +1,59 @@
+.firstpage  {
+  position: relative;
+  width: 100%;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.firstpage::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("/images/homephoto.jpg"); 
+  background-size: cover;
+  background-position: center;
+  opacity: 0.75; 
+  z-index: 1; 
+}
+
+
+.firstpage * {
+  position: relative;
+  z-index: 1; 
+}
+.firstpage h1{
+    color: black;
+    font-weight: bold;
+    
+}
+
+.firstpage p{
+    color: black;
+    font-weight: bold;
+}
+
+.firstpage button{
+  font-size: 16px;
+  cursor: pointer;
+  background-color: #571414;
+  color: rgba(238, 224, 208);
+  padding: 10px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  border: none;
+  outline: none;
+  width: 160px;
+  height: 45px;
+  transition: 0.5s ease;
+}
+
+.firstpage button:hover {
+  background-color: rgb(128, 58, 58); /* Slightly lighter shade on hover */
+}

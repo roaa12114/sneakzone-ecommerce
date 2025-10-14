@@ -1,0 +1,93 @@
+/* Second Navbar */
+.second-navbar {
+  background-color: #571414 !important; /* background */
+  border-radius: 20px;
+  margin: 4px auto;
+  width: 95%;
+  padding: 10px 20px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 9999;
+}
+
+/* Dropdown menu styling */
+.second-navbar .dropdown-menu {
+  background-color: #611616;        
+  border: none;
+  border-radius: 10px;
+  padding: 8px 0;
+  min-width: 180px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  position: absolute;
+  z-index: 10000;
+
+}
+
+.dropdown:hover .dropdown-menu {
+  display: block;
+} 
+/* Dropdown items (look like normal links) */
+.second-navbar .dropdown-item {
+  color: #fff !important;
+  font-weight: 500;
+  padding: 10px 16px;
+  display: block;
+  text-decoration: none;
+  text-align: left;
+  border-radius: 6px;
+  margin: 2px 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.second-navbar .dropdown-item:hover {
+  background-color: #7b1d1d !important;
+  color: #fff !important;
+  
+}
+
+/* Dropdown toggle (main text) */
+.second-navbar .dropdown-toggle {
+  color: #fff !important;
+}
+
+.second-navbar .dropdown-toggle::after {
+  margin-left: 6px;
+  color: #fff;
+}
+
+/* Navbar links */
+.second-navbar .nav-link {
+  color: #e0d8d8 !important;
+  transition: color 0.3s ease;
+}
+
+.second-navbar .nav-link:hover {
+  color: #cfcfcf !important; 
+}
+
+/* Search button */
+.second-navbar .btn-outline-success {
+  border-color: #8c8686 !important;
+  color: #8c8686 !important;
+  border-radius: 25px;
+  padding: 5px 15px;
+}
+
+.second-navbar .btn-outline-success:hover {
+  background-color: #655d5d !important;
+  color: white !important;
+}
+
+/* Search box */
+.second-navbar .form-control {
+  border-radius: 25px;
+  border: 1px solid #ccc;
+}
+
+/* Optional - make dropdown open above other elements */
+.dropdown-menu.show {
+  display: block;
+  position: absolute;
+}

@@ -1,0 +1,121 @@
+import React, { useEffect, useState } from "react";
+import { collection, getDocs, addDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import "./Products.css";
+import { useNavigate, useLocation } from "react-router-dom";
+
+function Products() {
+  const [products, setProducts] = useState([]);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // taking values from the url
+  const queryParams = new URLSearchParams(location.search);
+  const searchQuery = queryParams.get("search")?.toLowerCase() || "";
+  const categoryFromURL = queryParams.get("category") || "all";
+
+  
+  const [selectedCategory, setSelectedCategory] = useState(categoryFromURL);
+
+  // category updateL
+  useEffect(() => {
+    setSelectedCategory(categoryFromURL);
+  }, [categoryFromURL]);
+
+  // srore data from firebase
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "products"));
+        const productsData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setProducts(productsData);
+      } catch (error) {
+        console.error("Error fetching products: ", error);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+// felteration and search
+  const filteredProducts = products.filter((p) => {
+    const matchCategory =
+      selectedCategory === "all" || p.category?.toLowerCase() === selectedCategory;
+    const matchSearch =
+      p.name.toLowerCase().includes(searchQuery) ||
+      p.description?.toLowerCase().includes(searchQuery);
+    return matchCategory && matchSearch;
+  });
+
+  // redirect to the product page
+  const handleView = (id) => {
+    navigate(`/product/${id}`);
+  };
+
+  // add to cart
+  const handleAddToCart = async (product) => {
+  try {
+    await addDoc(collection(db, "cart"), {
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      quantity: 1
+    });
+    //بنجرب للكود يبوظ
+    let currentCount = parseInt(localStorage.getItem("cartCount")) || 0;
+    localStorage.setItem("cartCount", currentCount + 1);
+    window.dispatchEvent(new Event("storage"));
+
+    alert(`${product.name} added to cart!`);
+  } catch (error) {
+    console.error("Error adding to cart: ", error);
+  }};
+
+
+  return (
+    <div className="products-page">
+      <h2 className="products-title">Explore Our Sneakers 👟</h2>
+
+      {/* filter by click */}
+      <div className="category-filter">
+        {["all", "men", "women", "kids"].map((cat) => (
+          <button
+            key={cat}
+            className={selectedCategory === cat ? "active" : ""}
+            onClick={() => {
+              setSelectedCategory(cat);
+              navigate(`/products?category=${cat}`);
+            }}
+          >
+            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* display product */}
+      <div className="products-grid">
+        {filteredProducts.map((product) => (
+          <div className="product-card" key={product.id}>
+            <img src={product.image} alt={product.name} />
+            <h3>{product.name}</h3>
+            <p className="price">${product.price}</p>
+            <div className="buttonsStyle">
+            <button className="view-btn" onClick={() => handleView(product.id)}>
+              View
+            </button>
+            <button className="view-btn" variant="primary" onClick={() => handleAddToCart(product)}>
+              Add to Cart
+            </button>
+            </div>
+          </div>
+          
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default Products;
