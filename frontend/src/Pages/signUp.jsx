@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../firebase"; 
+import { auth, db } from "../firebase";
 import { setDoc, doc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import './Signup.css';
+import "./Signup.css";
 
 function Signup() {
-  const [name, setName] = useState(""); 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,7 +17,11 @@ function Signup() {
     console.log("Signup submit pressed", { name, email });
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
       console.log("Firebase createUser result:", userCredential);
       const user = userCredential.user;
 
@@ -76,7 +80,9 @@ function Signup() {
             required
           />
         </div>
-        <button type="submit" className="signup-btn">Sign Up</button>
+        <button type="submit" className="signup-btn">
+          Sign Up
+        </button>
         {error && <p style={{ color: "red" }}>{error}</p>}
       </form>
     </div>
