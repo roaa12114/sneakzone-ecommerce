@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { auth, onAuthStateChanged } from "../firebase";
 import { signOut } from "firebase/auth";
 import { FaShoppingCart } from "react-icons/fa";
-import "./navbar.css"; 
+import "./navBar.css"; 
 
 function NavigationBar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);

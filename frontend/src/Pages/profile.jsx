@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { auth, db } from "../firebase";
+import { auth, db, onAuthStateChanged } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import {
   updateProfile,
@@ -12,7 +12,6 @@ import {
 import "./profile.css";
 
 function Profile() {
-  const [userData, setUserData] = useState({ name: "", email: "" });
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -20,21 +19,19 @@ function Profile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const user = auth.currentUser;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const docRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          setUserData(docSnap.data());
           setNewName(docSnap.data().name);
           setNewEmail(user.email);
         }
       }
       setLoading(false);
-    };
-    fetchUserData();
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleUpdate = async () => {

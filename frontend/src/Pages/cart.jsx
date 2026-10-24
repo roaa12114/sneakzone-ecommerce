@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
-import { db } from "../firebase";
+import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
+import { db, auth, onAuthStateChanged } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { Container, Row, Col, Card, Button } from "react-bootstrap";
 
@@ -10,9 +10,15 @@ function Cart() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCart = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setCartItems([]);
+        calculateTotal([]);
+        return;
+      }
       try {
-        const querySnapshot = await getDocs(collection(db, "cart"));
+        const q = query(collection(db, "cart"), where("uid", "==", user.uid));
+        const querySnapshot = await getDocs(q);
         const items = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -22,9 +28,9 @@ function Cart() {
       } catch (error) {
         console.error("Error fetching cart items: ", error);
       }
-    };
+    });
 
-    fetchCart();
+    return () => unsubscribe();
   }, []);
 
   const calculateTotal = (items) => {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db, auth } from "../firebase";
 import { doc, getDoc, collection, addDoc, query, where, getDocs, serverTimestamp } from "firebase/firestore";
-import "./ProductDetails.css";
+import "./productDetails.css";
 
 function ProductDetails() {
   const { id } = useParams();
@@ -12,7 +12,6 @@ function ProductDetails() {
   const [hover, setHover] = useState(0);
   const [myFeedback, setMyFeedback] = useState(null);
 
-  // ✅ جلب بيانات المنتج
   useEffect(() => {
     const fetchProduct = async () => {
       const docRef = doc(db, "products", id);
@@ -76,6 +75,30 @@ function ProductDetails() {
     }
   };
 
+  // add to cart (per-user; matches products.jsx logic + uid from task 3)
+  const handleAddToCart = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login first!");
+      return;
+    }
+    try {
+      await addDoc(collection(db, "cart"), {
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        quantity: 1,
+        uid: user.uid,
+      });
+      let currentCount = parseInt(localStorage.getItem("cartCount")) || 0;
+      localStorage.setItem("cartCount", currentCount + 1);
+      window.dispatchEvent(new Event("storage"));
+      alert(`${product.name} added to cart!`);
+    } catch (error) {
+      console.error("Error adding to cart: ", error);
+    }
+  };
+
   if (!product) {
     return <p className="loading">Loading product details...</p>;
   }
@@ -85,7 +108,7 @@ function ProductDetails() {
       <div className="product-details-container">
         <div className="image-section">
           <img
-            src={`/${product.image}`}
+            src={product.image}
             alt={product.name}
             className="details-image"
           />
@@ -95,7 +118,7 @@ function ProductDetails() {
           <h1 className="product-name">{product.name}</h1>
           <p className="product-price">${product.price}</p>
           <p className="product-description">{product.description}</p>
-          <button className="add-to-cart">Add to Cart</button>
+          <button className="add-to-cart" onClick={handleAddToCart}>Add to Cart</button>
 
           {/* 📝 Feedback Form */}
           <div className="feedback-section">

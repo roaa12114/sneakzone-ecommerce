@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { collection, getDocs, addDoc } from "firebase/firestore";
-import { db } from "../firebase";
-import "./Products.css";
+import { db, auth } from "../firebase";
+import "./products.css";
 import { useNavigate, useLocation } from "react-router-dom";
 
 function Products() {
@@ -57,12 +57,18 @@ function Products() {
 
   // add to cart
   const handleAddToCart = async (product) => {
+  const user = auth.currentUser;
+  if (!user) {
+    alert("Please login first!");
+    return;
+  }
   try {
     await addDoc(collection(db, "cart"), {
       name: product.name,
       price: product.price,
       image: product.image,
-      quantity: 1
+      quantity: 1,
+      uid: user.uid,
     });
     //بنجرب للكود يبوظ
     let currentCount = parseInt(localStorage.getItem("cartCount")) || 0;
