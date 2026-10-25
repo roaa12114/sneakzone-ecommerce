@@ -13,10 +13,12 @@ service cloud.firestore {
     // ---- products (public read, admin write) -------------------------
     match /products/{id} {
       allow read: if true;
-      // Writes are admin-only. For a real app you'd lock this down to a
-      // custom claim or a separate admin SDK. Left open for now so you
-      // can seed data from the client during dev — tighten before launch.
-      allow write: if true;
+      // Writes are NOT allowed from the client. Seed products from the
+      // Firebase console (which uses the admin SDK and bypasses rules)
+      or via a Cloud Function. This is what makes the cart's get()
+      price verification meaningful — clients cannot lower a product's
+      price to match a fake cart price they're trying to write.
+      allow write: if false;
     }
 
     // ---- users (owner read + write own profile doc) -------------------
