@@ -6,6 +6,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 function Products() {
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -22,9 +24,10 @@ function Products() {
     setSelectedCategory(categoryFromURL);
   }, [categoryFromURL]);
 
-  // srore data from firebase
+  // fetch products from firebase
   useEffect(() => {
     const fetchProducts = async () => {
+      setError(null);
       try {
         const querySnapshot = await getDocs(collection(db, "products"));
         const productsData = querySnapshot.docs.map((doc) => ({
@@ -32,8 +35,11 @@ function Products() {
           ...doc.data(),
         }));
         setProducts(productsData);
-      } catch (error) {
-        console.error("Error fetching products: ", error);
+      } catch (e) {
+        console.error("Error fetching products: ", e);
+        setError("failed");
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -103,6 +109,16 @@ function Products() {
       </div>
 
       {/* display product */}
+      {loading ? (
+        <p className="text-center">Loading products…</p>
+      ) : error ? (
+        <div className="text-center">
+          <p>Something went wrong loading products.</p>
+          <button className="view-btn" onClick={() => window.location.reload()}>Retry</button>
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <p className="text-center">No products match your search. Try a different filter.</p>
+      ) : (
       <div className="products-grid">
         {filteredProducts.map((product) => (
           <div className="product-card" key={product.id}>
@@ -113,7 +129,7 @@ function Products() {
             <button className="view-btn" onClick={() => handleView(product.id)}>
               View
             </button>
-            <button className="view-btn" variant="primary" onClick={() => handleAddToCart(product)}>
+            <button className="view-btn" onClick={() => handleAddToCart(product)}>
               Add to Cart
             </button>
             </div>
@@ -121,6 +137,7 @@ function Products() {
           
         ))}
       </div>
+      )}
     </div>
   );
 }

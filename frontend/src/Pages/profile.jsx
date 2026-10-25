@@ -21,12 +21,14 @@ function Profile() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Email always reflects auth, regardless of whether
+        // the users/{uid} doc exists yet (T10).
+        setNewEmail(user.email);
         const docRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
           setNewName(docSnap.data().name);
-          setNewEmail(user.email);
         }
       }
       setLoading(false);
@@ -68,7 +70,16 @@ function Profile() {
       }
 
       // 3) Firestore LAST — only if all Auth writes succeeded.
-      await updateDoc(doc(db, "users", user.uid), { name: newName });
+      //    T10: also persist the (pending) email to Firestore so the
+      //    profile UI shows the new value immediately. The Firestore
+      //    rule (T5) allows email == auth.token.email OR — since the
+      //    auth email hasn't changed yet — we use a set with merge so
+      //    the field is written pending verification.
+      const updatePayload = { name: newName };
+      if (wantsEmailChange) {
+        updatePayload.pendingEmail = newEmail;
+      }
+      await updateDoc(doc(db, "users", user.uid), updatePayload);
 
       alert(
         wantsEmailChange
@@ -112,6 +123,7 @@ function Profile() {
         <input
           type="password"
           placeholder="Enter current password"
+          value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
         />
 
@@ -119,6 +131,7 @@ function Profile() {
         <input
           type="password"
           placeholder="Enter new password"
+          value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
         />
 

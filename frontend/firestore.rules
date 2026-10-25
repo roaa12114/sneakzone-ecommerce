@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helper functions --------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ---- products (public read, admin write) -------------------------
+    match /products/{id} {
+      allow read: if true;
+      // Writes are admin-only. For a real app you'd lock this down to a
+      // custom claim or a separate admin SDK. Left open for now so you
+      // can seed data from the client during dev — tighten before launch.
+      allow write: if true;
+    }
+
+    // ---- users (owner read + write own profile doc) -------------------
+    match /users/{uid} {
+      allow read:   if isOwner(uid);
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid)
+                    // Email field can only be set to the auth email
+                    // (defends against a client writing someone else's
+                    // email into a profile doc).
+                    && (!request.resource.data.keys().hasAny(['email'])
+                        || request.resource.data.email == request.auth.token.email);
+      allow delete: if isOwner(uid);
+    }
+
+    // ---- cart (per-user; deterministic doc ID = {uid}_{productId}) ---
+    //   T6: quantity must be a number >= 1.
+    //   T7: price must match the corresponding products doc (server-side
+    //       verification via get()). This is the best-effort rules-side
+    //       mitigation for "client writes price". A real production
+    //       checkout would still re-verify server-side.
+    match /cart/{cartId} {
+      allow read:   if isSignedIn() && resource.data.uid == request.auth.uid;
+
+      allow create: if isSignedIn()
+                    // Doc ID must be {uid}_{productId}.
+                    && cartId == request.auth.uid + '_' + request.resource.data.productId
+                    // uid field must match auth.
+                    && request.resource.data.uid == request.auth.uid
+                    // quantity must be a number >= 1.
+                    && request.resource.data.quantity is int
+                    && request.resource.data.quantity >= 1
+                    // price must match the products doc (T7).
+                    && get(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.price
+                       == request.resource.data.price;
+
+      allow update: if isSignedIn()
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid
+                    // Only the quantity field may change on update
+                    // (price/name/image are server-trusted at create).
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quantity'])
+                    && request.resource.data.quantity is int
+                    && request.resource.data.quantity >= 1;
+
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---- orders (per-user; created at checkout, never edited) --------
+    match /orders/{orderId} {
+      allow read:   if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == "paid"
+                    // Order ID should be {uid}_{ts} — soft check, not strict.
+                    && orderId.matches(request.auth.uid + '_\\d+');
+      allow update, delete: if false;  // immutable once created
+    }
+
+    // ---- feedback (public read; one per user per product via doc ID) -
+    //   Doc ID = {productId}_{uid}. T6: rating must be int 1-5;
+    //   comment length <= 1000.
+    match /feedback/{feedbackId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+                    && feedbackId == request.resource.data.productId + '_' + request.auth.uid
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.rating is int
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && request.resource.data.comment.size() <= 1000;
+
+      allow update: if isSignedIn()
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.rating is int
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && request.resource.data.comment.size() <= 1000;
+
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}

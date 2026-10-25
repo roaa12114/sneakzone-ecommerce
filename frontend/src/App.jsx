@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import NavigationBar from "./components/navBar.jsx";
 import Home from "./Pages/home";
 import Login from "./Pages/login.jsx";
@@ -47,7 +47,7 @@ function NotFound() {
     <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: "60vh" }}>
       <h1 className="display-1 fw-bold">404</h1>
       <p className="lead">Page not found.</p>
-      <a href="/" className="btn btn-primary mt-3">Go home</a>
+      <Link to="/" className="btn btn-primary mt-3">Go home</Link>
     </div>
   );
 }

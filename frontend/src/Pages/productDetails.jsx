@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db, auth, onAuthStateChanged } from "../firebase";
-import { doc, getDoc, collection, setDoc, query, where, getDocs, serverTimestamp, increment, deleteDoc, orderBy } from "firebase/firestore";
+import { doc, getDoc, collection, setDoc, query, where, getDocs, serverTimestamp, increment, deleteDoc } from "firebase/firestore";
 import "./productDetails.css";
 
 function ProductDetails() {
@@ -13,6 +13,8 @@ function ProductDetails() {
   const [myFeedback, setMyFeedback] = useState(null);
   const [allFeedback, setAllFeedback] = useState([]);
   const [currentUid, setCurrentUid] = useState(null);
+  const [currentUserName, setCurrentUserName] = useState("");
+  const [productError, setProductError] = useState(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -26,42 +28,70 @@ function ProductDetails() {
   }, [id]);
 
   // ✅ Track current user (fixes auth.currentUser-null-on-refresh race)
+  //    Also cache their display name from users/{uid} so we can
+  //    attribute feedback without exposing email.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUid(user ? user.uid : null);
-      if (!user) setMyFeedback(null);
+      if (!user) {
+        setMyFeedback(null);
+        setCurrentUserName("");
+        return;
+      }
+      // Prefer the name from users/{uid}; fall back to Auth displayName.
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        setCurrentUserName(snap.exists() ? (snap.data().name || user.displayName || "") : (user.displayName || ""));
+      } catch {
+        setCurrentUserName(user.displayName || "");
+      }
     });
     return () => unsubscribe();
   }, []);
 
-  // ✅ Fetch ALL public feedback for this product (one render, no auth gate)
+  // ✅ Fetch ALL public feedback for this product (no auth gate).
+  //    Drop orderBy — sort client-side by updatedAt so legacy
+  //    docs without the field still render (sorted last).
+  //    No composite index needed.
   useEffect(() => {
     const fetchFeedback = async () => {
       try {
         const q = query(
           collection(db, "feedback"),
-          where("productId", "==", id),
-          orderBy("createdAt", "desc")
+          where("productId", "==", id)
         );
         const snap = await getDocs(q);
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const list = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => {
+            const ta = a.updatedAt?.toMillis?.() || 0;
+            const tb = b.updatedAt?.toMillis?.() || 0;
+            return tb - ta;
+          });
         setAllFeedback(list);
-        // Mark the current user's own feedback (if any) for inline editing.
-        const me = auth.currentUser;
-        if (me) {
-          const mine = list.find((f) => f.uid === me.uid);
-          if (mine) {
-            setMyFeedback(mine);
-            setComment(mine.comment);
-            setRating(mine.rating);
-          }
-        }
       } catch (e) {
         console.error("Error fetching feedback:", e);
       }
     };
     fetchFeedback();
   }, [id]);
+
+  // ✅ Derive "my feedback" from allFeedback + currentUid. This
+  //    replaces the old `auth.currentUser` read that was null on
+  //    first paint after refresh (R2). Whenever the public list
+  //    or the current uid changes, re-derive mine + pre-fill form.
+  useEffect(() => {
+    if (!currentUid) {
+      setMyFeedback(null);
+      return;
+    }
+    const mine = allFeedback.find((f) => f.uid === currentUid);
+    setMyFeedback(mine || null);
+    if (mine) {
+      setComment(mine.comment);
+      setRating(mine.rating);
+    }
+  }, [allFeedback, currentUid]);
 
   // ✅ Submit or update feedback (deterministic doc ID = `{productId}_{uid}`)
   const handleFeedbackSubmit = async () => {
@@ -81,21 +111,27 @@ function ProductDetails() {
       await setDoc(doc(db, "feedback", feedbackId), {
         productId: id,
         uid: user.uid,
-        userEmail: user.email,
+        userName: currentUserName || "Anonymous",
         comment,
         rating,
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      setMyFeedback({ comment, rating });
-      // Refresh the public list so the new/edited review shows up.
+      setMyFeedback({ comment, rating, userName: currentUserName || "Anonymous" });
+      // Refresh the public list (no orderBy — sorted client-side).
       const q = query(
         collection(db, "feedback"),
-        where("productId", "==", id),
-        orderBy("updatedAt", "desc")
+        where("productId", "==", id)
       );
       const snap = await getDocs(q);
-      setAllFeedback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const list = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const ta = a.updatedAt?.toMillis?.() || 0;
+          const tb = b.updatedAt?.toMillis?.() || 0;
+          return tb - ta;
+        });
+      setAllFeedback(list);
     } catch (error) {
       console.error("Error saving feedback: ", error);
       alert(`⚠️ ${error.message}`);
@@ -143,6 +179,22 @@ function ProductDetails() {
     }
   };
 
+  if (productError === "not-found") {
+    return (
+      <div className="product-details-page">
+        <p>Product not found.</p>
+        <a href="/products" className="btn btn-primary mt-3">Browse products</a>
+      </div>
+    );
+  }
+  if (productError === "error") {
+    return (
+      <div className="product-details-page">
+        <p>Something went wrong loading this product. Please try again.</p>
+        <a href="/products" className="btn btn-primary mt-3">Browse products</a>
+      </div>
+    );
+  }
   if (!product) {
     return <p className="loading">Loading product details...</p>;
   }
@@ -229,7 +281,7 @@ function ProductDetails() {
                     <div>⭐ {f.rating}/5</div>
                     <div>{f.comment}</div>
                     <small style={{ color: "#888" }}>
-                      by {f.userEmail}
+                      by {f.userName || "Anonymous"}
                       {f.uid === currentUid ? " (you)" : ""}
                     </small>
                   </li>
