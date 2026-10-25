@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import { collection, getDocs, setDoc, doc, increment } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import "./products.css";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -45,8 +45,8 @@ function Products() {
     const matchCategory =
       selectedCategory === "all" || p.category?.toLowerCase() === selectedCategory;
     const matchSearch =
-      p.name.toLowerCase().includes(searchQuery) ||
-      p.description?.toLowerCase().includes(searchQuery);
+      (p.name?.toLowerCase() || "").includes(searchQuery) ||
+      (p.description?.toLowerCase() || "").includes(searchQuery);
     return matchCategory && matchSearch;
   });
 
@@ -63,17 +63,18 @@ function Products() {
     return;
   }
   try {
-    await addDoc(collection(db, "cart"), {
+    // Deterministic doc ID: {uid}_{productId}. setDoc with merge
+    // means first write creates the doc (quantity=1 via increment),
+    // subsequent writes atomically bump quantity. No duplicates.
+    const cartDocId = `${user.uid}_${product.id}`;
+    await setDoc(doc(db, "cart", cartDocId), {
+      uid: user.uid,
+      productId: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
-      quantity: 1,
-      uid: user.uid,
-    });
-    //بنجرب للكود يبوظ
-    let currentCount = parseInt(localStorage.getItem("cartCount")) || 0;
-    localStorage.setItem("cartCount", currentCount + 1);
-    window.dispatchEvent(new Event("storage"));
+      quantity: increment(1),
+    }, { merge: true });
 
     alert(`${product.name} added to cart!`);
   } catch (error) {

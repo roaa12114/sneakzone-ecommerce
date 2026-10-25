@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from "react";
-import ReactDOM from "react-dom";
+import React, { useState } from "react";
 import "./secondnavbar.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 function SecondNavbar() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
   const navigate = useNavigate();
 
   // ✅ Search handler
@@ -17,23 +15,11 @@ function SecondNavbar() {
     }
   };
 
-  // ✅ Navigate to category directly
+  // ✅ Navigate to category directly (Bootstrap closes the dropdown
+  //    for us, so we don't need showDropdown state or click-outside logic.)
   const handleCategory = (category) => {
     navigate(`/products?category=${category}`);
-    setShowDropdown(false); // Close dropdown after navigating
   };
-
-  // ✅ Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      const dropdown = document.getElementById("categoryDropdown");
-      if (dropdown && !dropdown.contains(event.target)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
 
   return (
     <nav className="navbar navbar-expand-lg second-navbar shadow-sm">
@@ -55,64 +41,53 @@ function SecondNavbar() {
         <div className="collapse navbar-collapse" id="navbarSupportedContent">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
-              <a className="nav-link" href="/">Home</a>
+              <Link className="nav-link" to="/">Home</Link>
             </li>
 
             <li className="nav-item">
-              <a className="nav-link" href="/products">Products</a>
+              <Link className="nav-link" to="/products">Products</Link>
             </li>
 
-            {/* Categories Dropdown */}
+            {/* Categories Dropdown — native Bootstrap, no portal */}
             <li className="nav-item dropdown">
               <a
                 className="nav-link dropdown-toggle"
                 href="#"
-                id="categoryDropdown"
                 role="button"
-                onClick={() => setShowDropdown(!showDropdown)}
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
               >
                 Categories
               </a>
-
-              {/* ✅ Render dropdown via Portal */}
-              {showDropdown &&
-                ReactDOM.createPortal(
-                  <ul
-                    className="dropdown-menu show"
-                    style={{
-                      position: "absolute",
-                      top: "60px",
-                      left: "150px",
-                      zIndex: 999999,
-                    }}
+              <ul className="dropdown-menu">
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => handleCategory("men")}
                   >
-                    <li>
-                      <a
-                        className="dropdown-item"
-                        onClick={() => handleCategory("men")}
-                      >
-                        Men
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        className="dropdown-item"
-                        onClick={() => handleCategory("women")}
-                      >
-                        Women
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        className="dropdown-item"
-                        onClick={() => handleCategory("kids")}
-                      >
-                        Kids
-                      </a>
-                    </li>
-                  </ul>,
-                  document.getElementById("dropdown-root")
-                )}
+                    Men
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => handleCategory("women")}
+                  >
+                    Women
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => handleCategory("kids")}
+                  >
+                    Kids
+                  </button>
+                </li>
+              </ul>
             </li>
           </ul>
 

@@ -1,8 +1,9 @@
 import { Navbar, Nav, Container, Button } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
-import { auth, onAuthStateChanged } from "../firebase";
+import { auth, db, onAuthStateChanged } from "../firebase";
 import { signOut } from "firebase/auth";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { FaShoppingCart } from "react-icons/fa";
 import "./navBar.css"; 
 
@@ -24,15 +25,28 @@ return () => unsubscribe();
   }, []);
   
   useEffect(() => {
-    // لما الصفحة تفتح أو تتحدث، يجيب العدد من localStorage
-    const count = parseInt(localStorage.getItem("cartCount")) || 0;
-    setCartCount(count);
-
-    // نعمل listener لو العدد اتغير (مثلاً لما نضيف من صفحة تانية)
-    window.addEventListener("storage", () => {
-      const updatedCount = parseInt(localStorage.getItem("cartCount")) || 0;
-      setCartCount(updatedCount);
+    // Subscribe to the cart collection filtered by uid so the badge
+    // stays in sync with Firestore (no more localStorage drift).
+    let unsubCart = () => {};
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      unsubCart();
+      if (!user) {
+        setCartCount(0);
+        return;
+      }
+      const q = query(collection(db, "cart"), where("uid", "==", user.uid));
+      unsubCart = onSnapshot(q, (snap) => {
+        const total = snap.docs.reduce(
+          (acc, d) => acc + (Number(d.get("quantity")) || 1),
+          0
+        );
+        setCartCount(total);
+      });
     });
+    return () => {
+      unsubCart();
+      unsubAuth();
+    };
   }, []);
 
   const handleLogout = async () => {

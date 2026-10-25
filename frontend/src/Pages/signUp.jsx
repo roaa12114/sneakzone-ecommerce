@@ -9,12 +9,23 @@ function Signup() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Signup submit pressed", { name, email });
+    setError("");
+
+    // Length rule (NIST: length > composition). Firebase's own minimum is 6.
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -22,20 +33,17 @@ function Signup() {
         email,
         password,
       );
-      console.log("Firebase createUser result:", userCredential);
       const user = userCredential.user;
 
       await setDoc(doc(db, "users", user.uid), {
         name: name,
         email: email,
       });
-      console.log("Saved user to Firestore for uid:", user.uid);
 
       // Use absolute route (not file path) and replace so back button behaviour is clean
       navigate("/login", { replace: true });
-      console.log("navigate('/login') called");
     } catch (err) {
-      console.error("Signup error:", err);
+      // Surface Firebase's own error text (e.g. "email already in use").
       setError(err.message || "Signup failed");
     }
   };
@@ -74,10 +82,24 @@ function Signup() {
             type="password"
             id="password"
             className="form-input"
-            placeholder="Enter your password"
+            placeholder="At least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={8}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="confirmPassword">Confirm Password</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            className="form-input"
+            placeholder="Re-enter your password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={8}
           />
         </div>
         <button type="submit" className="signup-btn">

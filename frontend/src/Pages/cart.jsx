@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, query, where, updateDoc, increment } from "firebase/firestore";
 import { db, auth, onAuthStateChanged } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { Container, Row, Col, Card, Button } from "react-bootstrap";
@@ -34,7 +34,11 @@ function Cart() {
   }, []);
 
   const calculateTotal = (items) => {
-    const sum = items.reduce((acc, item) => acc + item.price * (item.quantity || 1), 0);
+    const sum = items.reduce((acc, item) => {
+      const price = Number(item.price) || 0;
+      const qty = Number(item.quantity) || 1;
+      return acc + price * qty;
+    }, 0);
     setTotal(sum);
   };
 
@@ -46,6 +50,27 @@ function Cart() {
       calculateTotal(updatedItems);
     } catch (error) {
       console.error("Error removing item: ", error);
+    }
+  };
+
+  const handleUpdateQuantity = async (id, delta) => {
+    try {
+      const itemRef = doc(db, "cart", id);
+      await updateDoc(itemRef, { quantity: increment(delta) });
+      setCartItems((prev) =>
+        prev.map((it) =>
+          it.id === id
+            ? { ...it, quantity: Math.max(1, (Number(it.quantity) || 1) + delta) }
+            : it
+        )
+      );
+      // Recompute total from the updated local state.
+      setCartItems((prev) => {
+        calculateTotal(prev);
+        return prev;
+      });
+    } catch (error) {
+      console.error("Error updating quantity: ", error);
     }
   };
 
@@ -74,8 +99,24 @@ function Cart() {
                   <Card.Body>
                     <Card.Title>{item.name}</Card.Title>
                     <Card.Text>
-                      <strong>Price:</strong> ${item.price} <br />
-                      <strong>Quantity:</strong> {item.quantity || 1}
+                      <strong>Price:</strong> ${Number(item.price).toFixed(2)} <br />
+                      <strong>Quantity:</strong>{" "}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleUpdateQuantity(item.id, -1)}
+                        disabled={(Number(item.quantity) || 1) <= 1}
+                      >
+                        −
+                      </Button>
+                      {" "}{Number(item.quantity) || 1}{" "}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleUpdateQuantity(item.id, +1)}
+                      >
+                        +
+                      </Button>
                     </Card.Text>
                     <Button
                       variant="danger"

@@ -4,7 +4,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import {
   updateProfile,
   updatePassword,
-  updateEmail,
+  verifyBeforeUpdateEmail,
   signOut,
   reauthenticateWithCredential,
   EmailAuthProvider,
@@ -38,30 +38,45 @@ function Profile() {
     const user = auth.currentUser;
     if (!user) return alert("No user logged in!");
 
+    const wantsEmailChange = newEmail && newEmail !== user.email;
+    const wantsPasswordChange = !!newPassword;
+    // Email and password changes are sensitive: require reauth.
+    if ((wantsEmailChange || wantsPasswordChange) && !currentPassword) {
+      alert("Please enter your current password to change email or password.");
+      return;
+    }
+
     try {
-      // لو المستخدم بيغيّر الإيميل أو الباسورد لازم نعمل إعادة مصادقة
+      // 1) Reauth FIRST if any sensitive change requested.
       if (currentPassword) {
         const cred = EmailAuthProvider.credential(user.email, currentPassword);
         await reauthenticateWithCredential(user, cred);
       }
 
-      // تحديث الاسم في Firestore
-      await updateDoc(doc(db, "users", user.uid), { name: newName });
-
-      // تحديث الإيميل
-      if (newEmail && newEmail !== user.email) {
-        await updateEmail(user, newEmail);
+      // 2) Auth writes first (cheap; no email change yet).
+      if (newName) {
+        await updateProfile(user, { displayName: newName });
       }
-
-      // تحديث الباسورد
-      if (newPassword) {
+      if (wantsPasswordChange) {
         await updatePassword(user, newPassword);
       }
+      if (wantsEmailChange) {
+        // verifyBeforeUpdateEmail sends a verification link to the NEW
+        // address. The actual email change happens when the user clicks
+        // it. This replaces the deprecated updateEmail.
+        await verifyBeforeUpdateEmail(user, newEmail);
+      }
 
-      // تحديث الاسم في Firebase Auth
-      await updateProfile(user, { displayName: newName });
+      // 3) Firestore LAST — only if all Auth writes succeeded.
+      await updateDoc(doc(db, "users", user.uid), { name: newName });
 
-      alert("✅ Profile updated successfully!");
+      alert(
+        wantsEmailChange
+          ? "✅ Profile updated. Check your NEW email inbox to confirm the email change."
+          : "✅ Profile updated successfully!"
+      );
+      setCurrentPassword("");
+      setNewPassword("");
     } catch (error) {
       console.error("Error updating profile: ", error);
       alert(`⚠️ ${error.message}`);
